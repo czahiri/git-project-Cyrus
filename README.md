@@ -68,3 +68,10 @@ https://emn178.github.io/online-tools/sha1.html
 - If `git/objects/` does not exist, it will be created.
 - If the BLOB file already exists, it is not recreated.
 - Compression toggle is available in `Blob.COMPRESS`. Default is false.
+
+## Testing (GP-2.3.1)
+1) Compile:
+   javac Blob.java BlobTester.java
+2) Run:
+   java BlobTester
+3) The tester creates a source file, creates a BLOB, verifies the object exists, resets the objects directory, verifies removal, then creates it again.
