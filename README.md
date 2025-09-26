@@ -55,11 +55,11 @@ https://emn178.github.io/online-tools/sha1.html
 
 ## How to run
 1) Compile:
-   Blob.java BlobDriver.java
+   Blob.java
 2) Create a sample file:
    echo "hello" > hello.txt
 3) Create a BLOB:
-   java BlobDriver hello.txt
+   java Blob
 4) Check:
    ls git/objects
    The printed hash file should exist in `git/objects/`.
