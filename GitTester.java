@@ -102,6 +102,7 @@ public class GitTester {
     }
 
     public static void main(String[] args) {
+        //Tester should 0. Init git, 1. Make file, 2. Write to File, 3. Make Blob, compare SHA-1, 4. Add to index, 5. Delete git directory to reset, 6. Delete files that were programmatically created
         int times = 3;
         if (args != null) {
             if (args.length > 0) {
