@@ -144,6 +144,7 @@ public class GitTester {
             if (!idx.exists()) {
                 return false;
             }
+<<<<<<< HEAD
             BufferedReader br = new BufferedReader(new FileReader(idx));
             String line = br.readLine();
             while (line != null) {
@@ -155,6 +156,25 @@ public class GitTester {
                         br.close();
                         return true;
                     }
+=======
+        }
+        if (allPass == true) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public static void main(String[] args) {
+        //Tester should 0. Init git, 1. Make file, 2. Write to File, 3. Make Blob, compare SHA-1, 4. Add to index, 5. Delete git directory to reset, 6. Delete files that were programmatically created
+        int times = 3;
+        if (args != null) {
+            if (args.length > 0) {
+                try {
+                    times = Integer.parseInt(args[0]);
+                } catch (NumberFormatException e) {
+                    times = 3;
+>>>>>>> origin/feature
                 }
                 line = br.readLine();
             }
