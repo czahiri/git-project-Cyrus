@@ -100,4 +100,75 @@ public class Index {
         w.flush();
         w.close();
     }
+    public void resetObjects() {
+        File objects = new File("git" + File.separator + "objects");
+        if (objects.exists()) {
+            deleteRecursively(objects);
+        }
+        File gitDir = new File("git");
+        if (!gitDir.exists()) {
+            gitDir.mkdir();
+        }
+        File newObjects = new File(gitDir, "objects");
+        if (!newObjects.exists()) {
+            newObjects.mkdir();
+        }
+    }
+
+    public void clearIndex() {
+        try {
+            File idx = new File("git" + File.separator + "index");
+            File parent = idx.getParentFile();
+            if (parent != null) {
+                if (!parent.exists()) {
+                    parent.mkdirs();
+                }
+            }
+            FileWriter w = new FileWriter(idx, false);
+            w.write("");
+            w.flush();
+            w.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteNonJavaInCwd() {
+        File cwd = new File(".");
+        File[] items = cwd.listFiles();
+        if (items != null) {
+            int i = 0;
+            while (i < items.length) {
+                File f = items[i];
+                boolean isJava = false;
+                boolean isGit = false;
+                if (f.getName().endsWith(".java")) {
+                    isJava = true;
+                }
+                if (f.getName().equals("git")) {
+                    isGit = true;
+                }
+                if (f.isFile()) {
+                    if (isJava == false && isGit == false) {
+                        f.delete();
+                    }
+                }
+                i = i + 1;
+            }
+        }
+    }
+
+    private void deleteRecursively(File f) {
+        if (f.isDirectory()) {
+            File[] kids = f.listFiles();
+            if (kids != null) {
+                int i = 0;
+                while (i < kids.length) {
+                    deleteRecursively(kids[i]);
+                    i = i + 1;
+                }
+            }
+        }
+        f.delete();
+    }
 }
