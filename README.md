@@ -88,6 +88,6 @@ https://emn178.github.io/online-tools/sha1.html
 Use the `Index` class from your own Java code
 
 Notes:
-- This uses your existing BLOB logic to compute the SHA-1 and store the file.
+- This uses the existing BLOB logic to compute the SHA-1 and store the file.
 - The method creates `git/`, `git/objects/`, and `git/index` if they do not exist.
 
