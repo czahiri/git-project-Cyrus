@@ -75,3 +75,19 @@ https://emn178.github.io/online-tools/sha1.html
 2) Run:
    java BlobTester
 3) The tester creates a source file, creates a BLOB, verifies the object exists, resets the objects directory, verifies removal, then creates it again.
+
+# GP-2.4 Updating the Index File
+
+## What this adds
+- Staging support using a plain-text index at `git/index`.
+- Each line is exactly `<sha1><space><filename>`.
+- If a filename is already in the index, its line is replaced with the new hash.
+- No trailing spaces on lines and no extra newline at the end of the file.
+
+## How to use in code
+Use the `Index` class from your own Java code
+
+Notes:
+- This uses your existing BLOB logic to compute the SHA-1 and store the file.
+- The method creates `git/`, `git/objects/`, and `git/index` if they do not exist.
+
