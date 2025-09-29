@@ -7,6 +7,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class Blob {
 
+    // Toggle for compression
     public static boolean COMPRESS = false;
 
     public static String sha1FromFile(File file) throws IOException {
@@ -46,7 +47,6 @@ public class Blob {
 
     public static String createBlobFromPath(String sourcePath) throws IOException {
         File source = new File(sourcePath);
-        String hash = sha1FromFile(source);
 
         File gitDir = new File("git");
         if (!gitDir.exists()) {
@@ -58,14 +58,47 @@ public class Blob {
             objectsDir.mkdir();
         }
 
-        File blobFile = new File(objectsDir, hash);
-        if (!blobFile.exists()) {
-            if (COMPRESS == true) {
-                writeCompressedCopy(source, blobFile);
-            } else {
+        String hash;
+
+        if (COMPRESS == true) {
+            // Read file
+            byte[] raw = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(sourcePath));
+
+            // Compress
+            java.util.zip.Deflater deflater = new java.util.zip.Deflater();
+            deflater.setInput(raw);
+            deflater.finish();
+
+            byte[] buffer = new byte[1024];
+            java.io.ByteArrayOutputStream compressedOut = new java.io.ByteArrayOutputStream();
+            while (!deflater.finished()) {
+                int count = deflater.deflate(buffer);
+                compressedOut.write(buffer, 0, count);
+            }
+            deflater.end();
+
+            byte[] compressed = compressedOut.toByteArray();
+
+            // Hash compressed data
+            hash = sha1OfBytes(compressed);
+
+            // Save compressed data as blob
+            File blobFile = new File(objectsDir, hash);
+            if (!blobFile.exists()) {
+                FileOutputStream out = new FileOutputStream(blobFile);
+                out.write(compressed);
+                out.flush();
+                out.close();
+            }
+        } else {
+            // No compression
+            hash = sha1FromFile(source);
+            File blobFile = new File(objectsDir, hash);
+            if (!blobFile.exists()) {
                 writeRawCopy(source, blobFile);
             }
         }
+
         return hash;
     }
 
@@ -86,21 +119,16 @@ public class Blob {
         in.close();
     }
 
-    private static void writeCompressedCopy(File source, File target) throws IOException {
-        java.util.zip.DeflaterOutputStream out = new java.util.zip.DeflaterOutputStream(new FileOutputStream(target));
-        FileInputStream in = new FileInputStream(source);
-        byte[] buffer = new byte[8192];
-        int read;
-        while (true) {
-            read = in.read(buffer);
-            if (read == -1) {
-                break;
-            }
-            out.write(buffer, 0, read);
+    private static String sha1OfBytes(byte[] data) {
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-1 not available");
         }
-        out.finish();
-        out.close();
-        in.close();
+        md.update(data, 0, data.length);
+        byte[] digest = md.digest();
+        return toHex(digest);
     }
 
     private static String toHex(byte[] bytes) {
