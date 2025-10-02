@@ -34,40 +34,62 @@ public class Index {
 
     public void add(String sourcePath) throws IOException {
         ensureStructure();
-        String hash = Blob.createBlobFromPath(sourcePath);
-        String filename = fileNameOnly(sourcePath);
-
-        List<String> lines = readAll(indexFile.toPath());
-        List<String> filtered = new ArrayList<String>();
-
+    
+        String path = normalizePath(sourcePath);
+        String hash = Blob.createBlobFromPath(path);
+    
+        List<String> oldLines = readAll(indexFile.toPath());
+        List<String> newLines = new ArrayList<String>();
+    
+        boolean alreadyExact = false;
+    
         int i = 0;
-        while (i < lines.size()) {
-            String line = lines.get(i);
-            String keep = line;
-
-            boolean same = false;
+        while (i < oldLines.size()) {
+            String line = oldLines.get(i);
             if (line != null) {
                 int space = line.indexOf(' ');
-                String right;
-                if (space == -1) {
-                    right = line;
+                if (space != -1) {
+                    String left = line.substring(0, space);
+                    String right = line.substring(space + 1);
+                    if (right.equals(path)) {
+                        if (left.equals(hash)) {
+                            alreadyExact = true;
+                            newLines.add(line);
+                        }
+                    } else {
+                        newLines.add(line);
+                    }
                 } else {
-                    right = line.substring(space + 1);
+                    newLines.add(line);
                 }
-                if (right.equals(filename)) {
-                    same = true;
-                }
-            }
-
-            if (same == false) {
-                filtered.add(keep);
+            } else {
+                newLines.add(line);
             }
             i = i + 1;
         }
+    
+        if (alreadyExact == false) {
+            newLines.add(hash + " " + path);
+        }
+    
+        writeExact(indexFile.toPath(), newLines);
+    }    
 
-        filtered.add(hash + " " + filename);
-        writeExact(indexFile.toPath(), filtered);
+    private static String normalizePath(String p) {
+        if (p == null) {
+            return "";
+        }
+        String s = p.replace('\\', '/');
+        if (s.startsWith("./")) {
+            s = s.substring(2);
+        }
+        if (s.equals(".")) {
+            s = "";
+        }
+        return s;
     }
+    
+        
 
     private static String fileNameOnly(String path) {
         Path p = Paths.get(path);
