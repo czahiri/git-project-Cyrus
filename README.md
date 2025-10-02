@@ -170,4 +170,22 @@ The SHA-1 of the tree file becomes its filename inside `git/objects/`.
    System.out.println("Tree hash: " + treeHash);
 4) Check inside `git/objects/` to verify the tree file exists.
 
+# GP-3.3 Creating a Tree from the Index
 
+## What this adds
+- Generates **tree objects directly from the index** instead of scanning directories.
+- Uses a **working list** that starts with `blob <sha1> <path>` for each index entry.
+- Collapses directories bottom-up into `tree <sha1> <dirname>` entries until only the root tree remains.
+
+## Files
+- WorkingList.java — builds trees from index
+- WorkingListTester.java — simple runner, builds one root tree and prints its hash and contents
+
+## How to run
+1) Compile:
+   Blob.java Index.java WorkingList.java WorkingListTester.java
+2) Run:
+   java WorkingListTester
+3) Output:
+   - Prints the **root tree SHA-1**
+   - Prints the **contents of the root tree** stored under `git/objects/<sha1>`
