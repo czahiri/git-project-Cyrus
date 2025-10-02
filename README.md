@@ -91,3 +91,36 @@ Notes:
 - This uses the existing BLOB logic to compute the SHA-1 and store the file.
 - The method creates `git/`, `git/objects/`, and `git/index` if they do not exist.
 
+# GP-3.1 Updating the Index Formatting
+
+## What this adds
+- Updates the `git/index` file format to store the **relative path** of each staged file instead of just the filename.
+- Each entry now has the form `<sha1><space><pathname>`.
+- Handles duplicates and modifications:
+  - If the same file with the same hash is added again, it is ignored.
+  - If identical files exist in different directories, both are tracked with separate paths but the same hash.
+  - If a file’s contents change, the index updates with the new hash.
+
+## Example
+
+Before (old format):
+0acc46ad73849ea9832f600de83a014c9db9cdf0 Hello.txt
+
+After (new format):
+4377a91cdfd44db9a9bbf056849c7da0fc6cc7be myProgram/README.md
+ca2cb4da9485e7bbce664bf4f5ee2216a36af4fb myProgram/Hello.txt
+0acc46ad73849ea9832f600de83a014c9db9cdf0 myProgram/scripts/Cat.java
+
+## How to run
+1) Compile:
+   Index.java Blob.java
+2) Create some files and directories:
+   mkdir -p myProgram/scripts
+   echo "hello" > myProgram/Hello.txt
+   echo "cat code" > myProgram/scripts/Cat.java
+3) Stage the files from Java code:
+   Index idx = new Index();
+   idx.add("myProgram/Hello.txt");
+   idx.add("myProgram/scripts/Cat.java");
+4) Check git/index to see updated entries with relative paths.
+
