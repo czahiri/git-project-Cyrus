@@ -1,7 +1,7 @@
 # GP-2.1 Repository Initialization
 
 ## How to run
-1) Compile: `javac Git.java`
+1) Compile: `java Git.java`
 2) Run: `java Git`
 
 ## What it does
@@ -88,6 +88,104 @@ https://emn178.github.io/online-tools/sha1.html
 Use the `Index` class from your own Java code
 
 Notes:
-- This uses your existing BLOB logic to compute the SHA-1 and store the file.
+- This uses the existing BLOB logic to compute the SHA-1 and store the file.
 - The method creates `git/`, `git/objects/`, and `git/index` if they do not exist.
 
+# GP-3.1 Updating the Index Formatting
+
+## What this adds
+- Updates the `git/index` file format to store the **relative path** of each staged file instead of just the filename.
+- Each entry now has the form `<sha1><space><pathname>`.
+- Handles duplicates and modifications:
+  - If the same file with the same hash is added again, it is ignored.
+  - If identical files exist in different directories, both are tracked with separate paths but the same hash.
+  - If a file’s contents change, the index updates with the new hash.
+
+## Example
+
+Before (old format):
+0acc46ad73849ea9832f600de83a014c9db9cdf0 Hello.txt
+
+After (new format):
+4377a91cdfd44db9a9bbf056849c7da0fc6cc7be myProgram/README.md
+ca2cb4da9485e7bbce664bf4f5ee2216a36af4fb myProgram/Hello.txt
+0acc46ad73849ea9832f600de83a014c9db9cdf0 myProgram/scripts/Cat.java
+
+## How to run
+1) Compile:
+   Index.java Blob.java
+2) Create some files and directories:
+   mkdir -p myProgram/scripts
+   echo "hello" > myProgram/Hello.txt
+   echo "cat code" > myProgram/scripts/Cat.java
+3) Stage the files from Java code:
+   Index idx = new Index();
+   idx.add("myProgram/Hello.txt");
+   idx.add("myProgram/scripts/Cat.java");
+4) Check git/index to see updated entries with relative paths.
+
+# GP-3.2 Creating a Basic Tree
+
+## What this adds
+- Implements tree creation for directories.
+- A tree represents the structure of files and subdirectories inside a folder.
+- Each tree is stored as an object in `git/objects` with a unique SHA-1 hash.
+- Trees contain:
+  - `blob <sha1> <pathname>` entries for files
+  - `tree <sha1> <pathname>` entries for subdirectories
+- Trees are created recursively so that subdirectories generate their own tree objects, which are then referenced by their parent tree.
+
+## Example
+For a directory `myProgram/` with files and a `scripts/` folder:
+myProgram/
+README.md
+Hello.txt
+scripts/
+Cat.java
+goCopy code
+The `scripts/` directory produces:
+
+
+blob 0acc46ad73849ea9832f600de83a014c9db9cdf0 scripts/Cat.java
+goCopy code
+The `myProgram/` directory tree includes:
+
+blob 4377a91cdfd44db9a9bbf056849c7da0fc6cc7be myProgram/README.md
+blob 0a4d55a8d778e5022fab701977c5d840bbc486d0 myProgram/Hello.txt
+tree 483b5e082cf5502b303ba3dd4f3469a49495c9ef myProgram/scripts
+bashCopy code
+The SHA-1 of the tree file becomes its filename inside `git/objects/`.
+
+## How to run
+1) Compile:
+   Tree.java Blob.java
+2) Create a directory and sample files:
+   mkdir -p myProgram/scripts
+   echo "readme content" > myProgram/README.md
+   echo "hello" > myProgram/Hello.txt
+   echo "cat code" > myProgram/scripts/Cat.java
+3) Run the tree creation from Java code:
+   Tree t = new Tree();
+   String treeHash = t.createTree("myProgram");
+   System.out.println("Tree hash: " + treeHash);
+4) Check inside `git/objects/` to verify the tree file exists.
+
+# GP-3.3 Creating a Tree from the Index
+
+## What this adds
+- Generates **tree objects directly from the index** instead of scanning directories.
+- Uses a **working list** that starts with `blob <sha1> <path>` for each index entry.
+- Collapses directories bottom-up into `tree <sha1> <dirname>` entries until only the root tree remains.
+
+## Files
+- WorkingList.java — builds trees from index
+- WorkingListTester.java — simple runner, builds one root tree and prints its hash and contents
+
+## How to run
+1) Compile:
+   Blob.java Index.java WorkingList.java WorkingListTester.java
+2) Run:
+   java WorkingListTester
+3) Output:
+   - Prints the **root tree SHA-1**
+   - Prints the **contents of the root tree** stored under `git/objects/<sha1>`
