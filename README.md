@@ -1,7 +1,7 @@
 # GP-2.1 Repository Initialization
 
 ## How to run
-1) Compile: `javac Git.java`
+1) Compile: `java Git.java`
 2) Run: `java Git`
 
 ## What it does
@@ -123,4 +123,51 @@ ca2cb4da9485e7bbce664bf4f5ee2216a36af4fb myProgram/Hello.txt
    idx.add("myProgram/Hello.txt");
    idx.add("myProgram/scripts/Cat.java");
 4) Check git/index to see updated entries with relative paths.
+
+# GP-3.2 Creating a Basic Tree
+
+## What this adds
+- Implements tree creation for directories.
+- A tree represents the structure of files and subdirectories inside a folder.
+- Each tree is stored as an object in `git/objects` with a unique SHA-1 hash.
+- Trees contain:
+  - `blob <sha1> <pathname>` entries for files
+  - `tree <sha1> <pathname>` entries for subdirectories
+- Trees are created recursively so that subdirectories generate their own tree objects, which are then referenced by their parent tree.
+
+## Example
+For a directory `myProgram/` with files and a `scripts/` folder:
+myProgram/
+README.md
+Hello.txt
+scripts/
+Cat.java
+goCopy code
+The `scripts/` directory produces:
+
+
+blob 0acc46ad73849ea9832f600de83a014c9db9cdf0 scripts/Cat.java
+goCopy code
+The `myProgram/` directory tree includes:
+
+blob 4377a91cdfd44db9a9bbf056849c7da0fc6cc7be myProgram/README.md
+blob 0a4d55a8d778e5022fab701977c5d840bbc486d0 myProgram/Hello.txt
+tree 483b5e082cf5502b303ba3dd4f3469a49495c9ef myProgram/scripts
+bashCopy code
+The SHA-1 of the tree file becomes its filename inside `git/objects/`.
+
+## How to run
+1) Compile:
+   Tree.java Blob.java
+2) Create a directory and sample files:
+   mkdir -p myProgram/scripts
+   echo "readme content" > myProgram/README.md
+   echo "hello" > myProgram/Hello.txt
+   echo "cat code" > myProgram/scripts/Cat.java
+3) Run the tree creation from Java code:
+   Tree t = new Tree();
+   String treeHash = t.createTree("myProgram");
+   System.out.println("Tree hash: " + treeHash);
+4) Check inside `git/objects/` to verify the tree file exists.
+
 
