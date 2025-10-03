@@ -25,11 +25,11 @@ public class Tree {
                 File f = items[i];
                 if (f.isFile()) {
                     String blobHash = Blob.createBlobFromPath(f.getPath());
-                    sb.append("blob ").append(blobHash).append(" ").append(f.getPath()).append("\n");
+                    sb.append("blob ").append(blobHash).append(" ").append(Index.fileNameOnly(f.getPath())).append("\n");
                 } else {
                     if (f.isDirectory()) {
                         String childHash = createTree(f.getPath());
-                        sb.append("tree ").append(childHash).append(" ").append(f.getPath()).append("\n");
+                        sb.append("tree ").append(childHash).append(" ").append(Index.fileNameOnly(f.getPath())).append("\n");
                     }
                 }
                 i = i + 1;

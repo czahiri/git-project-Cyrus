@@ -91,7 +91,7 @@ public class Index {
     
         
 
-    private static String fileNameOnly(String path) {
+    public static String fileNameOnly(String path) {
         Path p = Paths.get(path);
         Path name = p.getFileName();
         if (name == null) {
