@@ -9,12 +9,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 
+/**
+ * Builds hierarchical tree objects from the git/index file,
+ * replicating how Git constructs directory trees.
+ */
 public class WorkingList {
 
+    /** Represents a single item in the working list — either a blob (file) or tree (directory). */
     private static class Item {
         String type; // "blob" or "tree"
-        String sha;
-        String path; // forward slashes
+        String sha;  // SHA-1 hash value
+        String path; // file or directory path (always uses forward slashes)
 
         Item(String t, String s, String p) {
             this.type = t;
@@ -23,37 +28,53 @@ public class WorkingList {
         }
     }
 
+    /**
+     * Main entry point — builds all trees from the index, bottom-up.
+     * Keeps collapsing directories until only the root tree remains.
+     * returns SHA-1 hash of the root tree
+     */
     public String build() throws Exception {
-        ensureObjects();
-        ArrayList<Item> list = read();
-        sort(list);
+        ensureObjects();              // make sure git/objects exists
+        ArrayList<Item> list = read(); // read index entries
+        sort(list);                    // sort alphabetically by path
 
+        // Loop until root tree is built
         while (true) {
             if (list.size() == 1) {
                 Item only = list.get(0);
                 if (only.type.equals("tree")) {
-                    return only.sha;
+                    return only.sha; // finished — root tree built
                 }
             }
+
+            // Find the next deepest directory that can be turned into a tree
             String dir = leafDir(list);
             if (dir == null) {
+                // If no more subdirectories remain, build root tree
                 String rootSha = makeTree("", list);
                 ArrayList<Item> one = new ArrayList<Item>();
                 one.add(new Item("tree", rootSha, ""));
                 list = one;
                 return rootSha;
             }
+
+            // Build tree for this directory, then replace its entries
             String dirSha = makeTree(dir, list);
             list = collapse(list, dir, dirSha);
         }
     }
 
+    /**
+     * Reads the git/index file and loads all blob entries into memory.
+     * returns list of blob-type items from the index
+     */
     private ArrayList<Item> read() throws Exception {
         ArrayList<Item> list = new ArrayList<Item>();
         File idx = new File("git" + File.separator + "index");
         if (!idx.exists()) {
             return list;
         }
+
         BufferedReader br = new BufferedReader(new FileReader(idx));
         String line = br.readLine();
         while (line != null) {
@@ -72,6 +93,9 @@ public class WorkingList {
         return list;
     }
 
+    /**
+     * Sorts the working list alphabetically by path.
+     */
     private void sort(ArrayList<Item> list) {
         Collections.sort(list, new Comparator<Item>() {
             public int compare(Item a, Item b) {
@@ -80,6 +104,11 @@ public class WorkingList {
         });
     }
 
+    /**
+     * Finds the deepest directory that has all subtrees already built,
+     * meaning it's ready to be collapsed into a tree.
+     * returns directory path ready to build, or null if root
+     */
     private String leafDir(ArrayList<Item> list) {
         String best = null;
         int bestDepth = -1;
@@ -103,6 +132,10 @@ public class WorkingList {
         return best;
     }
 
+    /**
+     * Checks if the given directory still contains unbuilt child subdirectories.
+     * returns true if more building is needed
+     */
     private boolean needsChildBuild(ArrayList<Item> list, String dir) {
         String prefix = dir + "/";
         int i = 0;
@@ -124,6 +157,9 @@ public class WorkingList {
         return false;
     }
 
+    /**
+     * Checks if a tree has already been created for the given directory.
+     */
     private boolean hasTree(ArrayList<Item> list, String dir) {
         int i = 0;
         while (i < list.size()) {
@@ -138,6 +174,11 @@ public class WorkingList {
         return false;
     }
 
+    /**
+     * Builds a tree file for a given directory.
+     * Each entry is "blob <sha> <filename>" or "tree <sha> <dirname>".
+     * returns SHA-1 hash of the created tree file
+     */
     private String makeTree(String dir, ArrayList<Item> list) throws Exception {
         ArrayList<String> lines = new ArrayList<String>();
 
@@ -148,10 +189,8 @@ public class WorkingList {
             if (parent.equals(dir)) {
                 String name = base(it.path);
                 if (it.type.equals("blob")) {
-                    if (name.length() > 0) {
-                        if (name.indexOf('/') == -1) {
-                            lines.add("blob " + it.sha + " " + name);
-                        }
+                    if (name.length() > 0 && name.indexOf('/') == -1) {
+                        lines.add("blob " + it.sha + " " + name);
                     }
                 } else {
                     lines.add("tree " + it.sha + " " + name);
@@ -167,6 +206,10 @@ public class WorkingList {
         return sha;
     }
 
+    /**
+     * Collapses all entries in a directory into a single tree entry.
+     * Replaces child blobs/trees with one "tree <sha> <dir>".
+     */
     private ArrayList<Item> collapse(ArrayList<Item> list, String dir, String sha) {
         ArrayList<Item> out = new ArrayList<Item>();
         String prefix;
@@ -194,10 +237,8 @@ public class WorkingList {
                         drop = true;
                     } else {
                         String maybeChildDir = dir + "/" + rest.substring(0, slash);
-                        if (it.type.equals("tree")) {
-                            if (it.path.equals(maybeChildDir)) {
-                                drop = true;
-                            }
+                        if (it.type.equals("tree") && it.path.equals(maybeChildDir)) {
+                            drop = true;
                         }
                     }
                 }
@@ -214,6 +255,9 @@ public class WorkingList {
         return out;
     }
 
+    /**
+     * Returns the parent directory path of a given file/directory path.
+     */
     private String findParentDir(String path) {
         if (path == null) {
             return "";
@@ -227,6 +271,9 @@ public class WorkingList {
         }
     }
 
+    /**
+     * Extracts the base name (last component) from a path.
+     */
     private String base(String path) {
         if (path == null) {
             return "";
@@ -240,11 +287,11 @@ public class WorkingList {
         }
     }
 
+    /**
+     * Calculates directory depth (count of slashes + 1).
+     */
     private int depth(String path) {
-        if (path == null) {
-            return 0;
-        }
-        if (path.length() == 0) {
+        if (path == null || path.length() == 0) {
             return 0;
         }
         int c = 1;
@@ -258,6 +305,9 @@ public class WorkingList {
         return c;
     }
 
+    /**
+     * Joins all lines with newline characters to form file content.
+     */
     private String join(ArrayList<String> lines) {
         StringBuilder sb = new StringBuilder();
         int i = 0;
@@ -271,6 +321,9 @@ public class WorkingList {
         return sb.toString();
     }
 
+    /**
+     * Ensures the "git/objects" folder exists before writing any trees.
+     */
     private void ensureObjects() {
         File git = new File("git");
         if (!git.exists()) {
@@ -282,6 +335,10 @@ public class WorkingList {
         }
     }
 
+    /**
+     * Writes a tree object to git/objects/<sha>.
+     * If the file already exists, it’s not overwritten.
+     */
     private void writeObj(String sha, String data) throws Exception {
         File out = new File("git" + File.separator + "objects", sha);
         if (!out.exists()) {
@@ -292,6 +349,9 @@ public class WorkingList {
         }
     }
 
+    /**
+     * Returns the SHA-1 hash of a given string.
+     */
     private String sha1(String s) {
         MessageDigest md;
         try {
@@ -303,6 +363,9 @@ public class WorkingList {
         return toHex(dig);
     }
 
+    /**
+     * Converts byte array to hexadecimal string.
+     */
     private String toHex(byte[] b) {
         StringBuilder sb = new StringBuilder(b.length * 2);
         int i = 0;
