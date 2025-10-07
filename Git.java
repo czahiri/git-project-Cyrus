@@ -48,8 +48,8 @@ public class Git {
 
     /**
      * Calculates SHA-1 hash of a file’s contents.
-     * @param file File to hash
-     * @return 40-character hex SHA-1 string
+     * File to hash
+     * returns 40-character hex SHA-1 string
      */
     public static String sha1FromFile(File file) throws IOException {
         if (file == null || !file.exists() || !file.isFile()) {
