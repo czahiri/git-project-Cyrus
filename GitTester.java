@@ -4,11 +4,11 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 
 public class GitTester {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Throwable {
         File repo = new File("git");
-        if (repo.exists()) {
-            deleteRecursively(repo);
-        }
+        // if (repo.exists()) {
+        //     deleteRecursively(repo);
+        // }
 
         // Initialize repository
         Git g = new Git();
@@ -71,16 +71,22 @@ public class GitTester {
             return;
         }
 
+        //priscilla add
+        String author = "priscilla";
+        String message = "priscilla was here";
+        Git.writeInCommit(author, message);
+
+
         // Delete repo
-        if (repo.exists()) {
-            deleteRecursively(repo);
-        }
-        if (!repo.exists()) {
-            System.out.println("Repo cleanup: PASS");
-        } else {
-            System.out.println("Repo cleanup: FAIL");
-            return;
-        }
+        // if (repo.exists()) {
+        //     deleteRecursively(repo);
+        // }
+        // if (!repo.exists()) {
+        //     System.out.println("Repo cleanup: PASS");
+        // } else {
+        //     System.out.println("Repo cleanup: FAIL");
+        //     return;
+        // }
 
         // Delete program files
         File f = new File("tester_file.txt");

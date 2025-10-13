@@ -189,3 +189,6 @@ The SHA-1 of the tree file becomes its filename inside `git/objects/`.
 3) Output:
    - Prints the **root tree SHA-1**
    - Prints the **contents of the root tree** stored under `git/objects/<sha1>`
+
+## No Critical Bugs or Errors found, BUT some functionality missing in create tree - by priscilla
+1) I discovered that when creating a tree, the “root” is essentially not as concentrated as it needs to be. Instead of the root tree listing the contents of the main directory, there needs to be one more object made that is named the hash of the contents of the root directory and then contains the name of the root directory.
