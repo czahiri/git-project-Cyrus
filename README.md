@@ -189,3 +189,7 @@ The SHA-1 of the tree file becomes its filename inside `git/objects/`.
 3) Output:
    - Prints the **root tree SHA-1**
    - Prints the **contents of the root tree** stored under `git/objects/<sha1>`
+
+# GP-5.0 Update Code to Match Rubric
+# What this adds
+A rubric tester class to to check if the code matches the rubric, and the GitRekt wrapper class!
