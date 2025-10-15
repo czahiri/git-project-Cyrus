@@ -9,17 +9,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 
-/**
- * Builds hierarchical tree objects from the git/index file,
- * replicating how Git constructs directory trees.
- */
+// Builds hierarchical tree objects from the git/index file
 public class WorkingList {
 
-    /** Represents a single item in the working list — either a blob (file) or tree (directory). */
+    // Represents a single item in the working list
     private static class Item {
         String type; // "blob" or "tree"
         String sha;  // SHA-1 hash value
-        String path; // file or directory path (always uses forward slashes)
+        String path; // file or directory path (with forward slashes)
 
         Item(String t, String s, String p) {
             this.type = t;
@@ -28,53 +25,86 @@ public class WorkingList {
         }
     }
 
-    /**
-     * Main entry point — builds all trees from the index, bottom-up.
-     * Keeps collapsing directories until only the root tree remains.
-     * returns SHA-1 hash of the root tree
-     */
+    // Builds all trees from index, bottom-up, returns root tree SHA
     public String build() throws Exception {
-        ensureObjects();              // make sure git/objects exists
-        ArrayList<Item> list = read(); // read index entries
-        sort(list);                    // sort alphabetically by path
+        ensureObjects();
 
-        // Loop until root tree is built
+        ArrayList<Item> list = read();
+        sort(list);
+
+        // Special case: empty index -> empty root tree
+        if (list.size() == 0) {
+            String emptyContent = "";
+            String emptySha = sha1(emptyContent);
+            writeObj(emptySha, emptyContent);
+            return emptySha;
+        }
+
         while (true) {
             if (list.size() == 1) {
                 Item only = list.get(0);
-                if (only.type.equals("tree")) {
-                    return only.sha; // finished — root tree built
+                if ("tree".equals(only.type)) {
+                    return only.sha;
                 }
             }
 
-            // Find the next deepest directory that can be turned into a tree
             String dir = leafDir(list);
             if (dir == null) {
-                // If no more subdirectories remain, build root tree
-                String rootSha = makeTree("", list);
-                ArrayList<Item> one = new ArrayList<Item>();
-                one.add(new Item("tree", rootSha, ""));
-                list = one;
-                return rootSha;
-            }
+                // Cyrus Fix: if no subdirs remain, collapse all top-level items into a root tree
+                ArrayList<String> trLines = new ArrayList<String>();
+                int iTop = 0;
+                while (iTop < list.size()) {
+                    Item itemTop = list.get(iTop);
+                    if (itemTop.path.indexOf('/') == -1) {
+                        trLines.add(itemTop.type + " " + itemTop.sha + " " + itemTop.path);
+                    }
+                    iTop = iTop + 1;
+                }
+                Collections.sort(trLines);
+                String content;
+                if (trLines.size() == 0) {
+                    content = "";
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    int j = 0;
+                    while (j < trLines.size()) {
+                        sb.append(trLines.get(j));
+                        if (j < trLines.size() - 1) {
+                            sb.append("\n");
+                        }
+                        j = j + 1;
+                    }
+                    content = sb.toString() + "\n";
+                }
+                String rootSha = sha1(content);
+                writeObj(rootSha, content);
 
-            // Build tree for this directory, then replace its entries
-            String dirSha = makeTree(dir, list);
-            list = collapse(list, dir, dirSha);
+                ArrayList<Item> next = new ArrayList<Item>();
+                next.add(new Item("tree", rootSha, ""));
+                int k = 0;
+                while (k < list.size()) {
+                    Item itKeep = list.get(k);
+                    if (itKeep.path.indexOf('/') != -1) {
+                        next.add(itKeep);
+                    }
+                    k = k + 1;
+                }
+                list = next;
+                // continue loop; will collapse remaining subtrees to reach a single root tree
+            } else {
+                String dirSha = makeTree(dir, list);
+                list = collapse(list, dir, dirSha);
+            }
         }
     }
 
-    /**
-     * Reads the git/index file and loads all blob entries into memory.
-     * returns list of blob-type items from the index
-     */
+    // Reads git/index and loads blob entries
     private ArrayList<Item> read() throws Exception {
         ArrayList<Item> list = new ArrayList<Item>();
         File idx = new File("git" + File.separator + "index");
         if (!idx.exists()) {
             return list;
         }
-
         BufferedReader br = new BufferedReader(new FileReader(idx));
         String line = br.readLine();
         while (line != null) {
@@ -93,9 +123,7 @@ public class WorkingList {
         return list;
     }
 
-    /**
-     * Sorts the working list alphabetically by path.
-     */
+    // Sort by path
     private void sort(ArrayList<Item> list) {
         Collections.sort(list, new Comparator<Item>() {
             public int compare(Item a, Item b) {
@@ -104,11 +132,7 @@ public class WorkingList {
         });
     }
 
-    /**
-     * Finds the deepest directory that has all subtrees already built,
-     * meaning it's ready to be collapsed into a tree.
-     * returns directory path ready to build, or null if root
-     */
+    // Finds deepest directory ready to build; returns null if none
     private String leafDir(ArrayList<Item> list) {
         String best = null;
         int bestDepth = -1;
@@ -132,10 +156,7 @@ public class WorkingList {
         return best;
     }
 
-    /**
-     * Checks if the given directory still contains unbuilt child subdirectories.
-     * returns true if more building is needed
-     */
+    // Checks if a directory still has unbuilt child subdirectories
     private boolean needsChildBuild(ArrayList<Item> list, String dir) {
         String prefix = dir + "/";
         int i = 0;
@@ -157,9 +178,7 @@ public class WorkingList {
         return false;
     }
 
-    /**
-     * Checks if a tree has already been created for the given directory.
-     */
+    // True if a tree already exists for dir
     private boolean hasTree(ArrayList<Item> list, String dir) {
         int i = 0;
         while (i < list.size()) {
@@ -174,11 +193,7 @@ public class WorkingList {
         return false;
     }
 
-    /**
-     * Builds a tree file for a given directory.
-     * Each entry is "blob <sha> <filename>" or "tree <sha> <dirname>".
-     * returns SHA-1 hash of the created tree file
-     */
+    // Builds a tree file for a given directory, returns its SHA
     private String makeTree(String dir, ArrayList<Item> list) throws Exception {
         ArrayList<String> lines = new ArrayList<String>();
 
@@ -189,8 +204,10 @@ public class WorkingList {
             if (parent.equals(dir)) {
                 String name = base(it.path);
                 if (it.type.equals("blob")) {
-                    if (name.length() > 0 && name.indexOf('/') == -1) {
-                        lines.add("blob " + it.sha + " " + name);
+                    if (name.length() > 0) {
+                        if (name.indexOf('/') == -1) {
+                            lines.add("blob " + it.sha + " " + name);
+                        }
                     }
                 } else {
                     lines.add("tree " + it.sha + " " + name);
@@ -206,10 +223,7 @@ public class WorkingList {
         return sha;
     }
 
-    /**
-     * Collapses all entries in a directory into a single tree entry.
-     * Replaces child blobs/trees with one "tree <sha> <dir>".
-     */
+    // Replaces children of dir with single "tree <sha> <dir>"
     private ArrayList<Item> collapse(ArrayList<Item> list, String dir, String sha) {
         ArrayList<Item> out = new ArrayList<Item>();
         String prefix;
@@ -237,8 +251,10 @@ public class WorkingList {
                         drop = true;
                     } else {
                         String maybeChildDir = dir + "/" + rest.substring(0, slash);
-                        if (it.type.equals("tree") && it.path.equals(maybeChildDir)) {
-                            drop = true;
+                        if (it.type.equals("tree")) {
+                            if (it.path.equals(maybeChildDir)) {
+                                drop = true;
+                            }
                         }
                     }
                 }
@@ -255,9 +271,7 @@ public class WorkingList {
         return out;
     }
 
-    /**
-     * Returns the parent directory path of a given file/directory path.
-     */
+    // Parent directory path of a path
     private String findParentDir(String path) {
         if (path == null) {
             return "";
@@ -271,9 +285,7 @@ public class WorkingList {
         }
     }
 
-    /**
-     * Extracts the base name (last component) from a path.
-     */
+    // Basename of a path
     private String base(String path) {
         if (path == null) {
             return "";
@@ -287,11 +299,12 @@ public class WorkingList {
         }
     }
 
-    /**
-     * Calculates directory depth (count of slashes + 1).
-     */
+    // Depth of a path (slashes + 1)
     private int depth(String path) {
-        if (path == null || path.length() == 0) {
+        if (path == null) {
+            return 0;
+        }
+        if (path.length() == 0) {
             return 0;
         }
         int c = 1;
@@ -305,9 +318,7 @@ public class WorkingList {
         return c;
     }
 
-    /**
-     * Joins all lines with newline characters to form file content.
-     */
+    // Joins lines with newline
     private String join(ArrayList<String> lines) {
         StringBuilder sb = new StringBuilder();
         int i = 0;
@@ -321,9 +332,7 @@ public class WorkingList {
         return sb.toString();
     }
 
-    /**
-     * Ensures the "git/objects" folder exists before writing any trees.
-     */
+    // Ensure git/objects exists
     private void ensureObjects() {
         File git = new File("git");
         if (!git.exists()) {
@@ -335,10 +344,7 @@ public class WorkingList {
         }
     }
 
-    /**
-     * Writes a tree object to git/objects/<sha>.
-     * If the file already exists, it’s not overwritten.
-     */
+    // Write object to git/objects/<sha> if not present
     private void writeObj(String sha, String data) throws Exception {
         File out = new File("git" + File.separator + "objects", sha);
         if (!out.exists()) {
@@ -349,9 +355,7 @@ public class WorkingList {
         }
     }
 
-    /**
-     * Returns the SHA-1 hash of a given string.
-     */
+    // SHA-1 of string
     private String sha1(String s) {
         MessageDigest md;
         try {
@@ -363,9 +367,7 @@ public class WorkingList {
         return toHex(dig);
     }
 
-    /**
-     * Converts byte array to hexadecimal string.
-     */
+    // Hex helper
     private String toHex(byte[] b) {
         StringBuilder sb = new StringBuilder(b.length * 2);
         int i = 0;
